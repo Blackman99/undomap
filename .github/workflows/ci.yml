@@ -54,9 +54,9 @@ jobs:
         shell: bash
         run: |
           mkdir -p renders && head -c 3000000 /dev/urandom > renders/final.mov
-          set +e; node dist/cli.js . > out.txt; code=$?; set -e
-          cat out.txt
-          test "$code" = "1" && grep -q "renders/" out.txt && grep -q "across 1 place your agent can erase forever" out.txt
+          set +e; node dist/cli.js . > "$RUNNER_TEMP/out.txt"; code=$?; set -e
+          cat "$RUNNER_TEMP/out.txt"
+          test "$code" = "1" && grep -q "renders/" "$RUNNER_TEMP/out.txt" && grep -q "across 1 place your agent can erase forever" "$RUNNER_TEMP/out.txt"
       - name: MCP stdio smoke
         shell: bash
         run: |
