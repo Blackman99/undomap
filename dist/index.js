@@ -1,6 +1,6 @@
 // src/collect.ts
 import { spawnSync as spawnSync2 } from "node:child_process";
-import { accessSync, closeSync, constants, existsSync as existsSync2, lstatSync, openSync, readSync, readdirSync as readdirSync2, realpathSync, statSync } from "node:fs";
+import { accessSync, closeSync, constants, existsSync as existsSync2, lstatSync, openSync, readSync, readdirSync as readdirSync2, realpathSync as realpathSync2, statSync } from "node:fs";
 import { basename, dirname, join as join2, relative, resolve, sep as sep2 } from "node:path";
 
 // src/patterns.ts
@@ -86,7 +86,7 @@ function globMatch(pattern, path) {
 
 // src/snapshots.ts
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { join, sep } from "node:path";
 var defaultRun = (cmd, args) => {
   try {
@@ -118,7 +118,8 @@ function probeSnapshots(rootAbs, opts = {}) {
     const rest = mode.slice(5);
     const i = rest.indexOf(":");
     const label2 = i < 0 ? rest : rest.slice(0, i);
-    const prefix = i < 0 ? "" : rest.slice(i + 1);
+    const raw = i < 0 ? "" : rest.slice(i + 1);
+    const prefix = raw && existsSync(raw) ? realpathSync.native(raw) : raw;
     probes.push({ name: "snapshots", status: "ok", detail: `${label2} (test hook)`, counts: true });
     return { probes, covers: (abs) => prefix && under(abs, prefix) ? label2 : void 0 };
   }
@@ -242,7 +243,7 @@ function collect(rootInput, opts = {}) {
     throw new UsageError(`no such directory: ${rootInput}`);
   }
   if (!st.isDirectory()) throw new UsageError(`undomap maps directories; ${rootInput} is a file. Try: undomap ${JSON.stringify(resolve(rootInput, ".."))}`);
-  const root = realpathSync.native(resolve(rootInput));
+  const root = realpathSync2.native(resolve(rootInput));
   const entries = [];
   const absOf = /* @__PURE__ */ new Map();
   const repos = [];
@@ -268,7 +269,7 @@ function collect(rootInput, opts = {}) {
   };
   const realTarget = (abs) => {
     try {
-      return realpathSync.native(abs);
+      return realpathSync2.native(abs);
     } catch {
       return null;
     }
@@ -477,7 +478,7 @@ function collect(rootInput, opts = {}) {
     if (gitOk && existsSync2(join2(dir, ".git"))) {
       const top = git(dir, ["rev-parse", "--show-toplevel"]);
       if (top.ok && top.out.trim()) {
-        const t = realpathSync.native(resolve(top.out.trim()));
+        const t = realpathSync2.native(resolve(top.out.trim()));
         if (t === dir) return scanRepo(dir);
       }
     }
@@ -485,7 +486,7 @@ function collect(rootInput, opts = {}) {
   };
   if (gitOk) {
     const top = git(root, ["rev-parse", "--show-toplevel"]);
-    const t = top.ok && top.out.trim() ? realpathSync.native(resolve(top.out.trim())) : null;
+    const t = top.ok && top.out.trim() ? realpathSync2.native(resolve(top.out.trim())) : null;
     if (t && t !== root) {
       const sub = relative(t, root);
       const ignored = git(t, ["check-ignore", "-q", "--", sub.split(sep2).join("/") + "/"]).ok;

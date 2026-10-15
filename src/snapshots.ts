@@ -1,6 +1,6 @@
 // Best-effort probes for local snapshot coverage. A missing tool never fails the run: it is "unknown".
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { join, sep } from "node:path";
 import type { Probe } from "./types.js";
 
@@ -51,7 +51,9 @@ export function probeSnapshots(rootAbs: string, opts: ProbeOptions = {}): Snapsh
     const rest = mode.slice(5);
     const i = rest.indexOf(":");
     const label = i < 0 ? rest : rest.slice(0, i);
-    const prefix = i < 0 ? "" : rest.slice(i + 1);
+    const raw = i < 0 ? "" : rest.slice(i + 1);
+    // Same resolution as the mapped root (Windows 8.3 short names, macOS /private/var).
+    const prefix = raw && existsSync(raw) ? realpathSync.native(raw) : raw;
     probes.push({ name: "snapshots", status: "ok", detail: `${label} (test hook)`, counts: true });
     return { probes, covers: (abs) => (prefix && under(abs, prefix) ? label : undefined) };
   }
