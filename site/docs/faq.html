@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAQ · undomap docs</title>
+<meta name="description" content="Trash, Time Machine, cloud sync, why .git can be permanent, false positives.">
+<link rel="canonical" href="https://blackman99.github.io/undomap/docs/faq.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#cfdce3">
+<meta property="og:type" content="article"><meta property="og:site_name" content="undomap">
+<meta property="og:url" content="https://blackman99.github.io/undomap/docs/faq.html"><meta property="og:title" content="undomap docs · FAQ"><meta property="og:description" content="Trash, Time Machine, cloud sync, why .git can be permanent, false positives.">
+<meta property="og:image" content="https://blackman99.github.io/undomap/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="undomap flood-zone survey map">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="undomap docs · FAQ"><meta name="twitter:description" content="Trash, Time Machine, cloud sync, why .git can be permanent, false positives."><meta name="twitter:image" content="https://blackman99.github.io/undomap/og.png">
+<link rel="stylesheet" href="docs.css"></head>
+<body>
+<header class="strip"><a class="mark" href="../"><img src="../favicon.svg" width="20" height="20" alt=""><span>undomap</span></a><p>DOCS · SHEET 06 OF 06</p><nav><a href="../">Map</a><a href="https://github.com/Blackman99/undomap">GitHub</a></nav></header>
+<div class="wrap"><nav class="side" aria-label="Docs"><p>Index of sheets</p><ol><li><a href="index.html">Overview</a></li><li><a href="install.html">Install</a></li><li><a href="usage.html">Usage</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="reference.html">Reference</a></li><li><a href="faq.html" aria-current="page">FAQ</a></li></ol></nav>
+<main><h1>FAQ</h1>
+<h2>My files go to the Trash when I delete them. Isn't that an undo?</h2>
+<p>Not for agents. <code>rm</code>, <code>rimraf</code>, Node's <code>fs.rm</code>, Python's <code>shutil.rmtree</code> and <code>git clean</code> all skip the Trash and Recycle Bin. In cline#15023 the Recycle Bin was empty. undomap shows the Trash under probes but never counts it.</p>
+<h2>Why is a whole <code>.git</code> in Zone VE?</h2>
+<p>If a repo has no remote, its history exists only in <code>.git</code>. One <code>rm -rf</code> of the project directory takes the files and every way back to them. A <code>git bundle</code> is a single file you can keep anywhere.</p>
+<h2>Clean tracked files are "undoable". What if the agent deletes <code>.git</code> too?</h2>
+<p>Then they're only as safe as your remote. That's why "no remote" is permanent and "unpushed commits" is slow undo. Zone X assumes <code>.git</code> survives, which is the common case for file-level edits and deletes.</p>
+<h2>Time Machine is on. Why is something still in Zone VE?</h2>
+<p>undomap asks <code>tmutil isexcluded</code> for each fragile path. Big folders (datasets, VM images, <code>~/code</code> itself) are often excluded on purpose. They show as VE with no snapshot.</p>
+<h2>Dropbox, iCloud or OneDrive?</h2>
+<p>A sync client copies a delete within seconds. The provider's own version history or recycle bin (often 30 days) is the real undo. v0.1 doesn't detect it yet (planned for v0.2). Until then, list those folders under <code>backedUp</code> if you trust that history.</p>
+<h2>It says my <code>dist/</code> is regenerable, but it isn't.</h2>
+<p>Built-in names are a guess. Add the folder to <code>backedUp</code> if it's protected some other way. If it really can't be rebuilt, rename it or <a href="https://github.com/Blackman99/undomap/issues">open an issue</a>. A per-path "permanent" override is on the roadmap.</p>
+<h2>Does it read file contents?</h2>
+<p>Only the first 4 bytes of gitignored or untracked files, to spot compiled binaries. Everything else is <code>lstat</code> and git metadata. Nothing leaves your machine. The landing page draws dropped JSON in the browser tab.</p>
+<h2>How is this different from agentckpt, blast-radius tools or command blockers?</h2>
+<p>Blockers stop commands. Checkpoint tools (like <a href="https://github.com/Blackman99/agentckpt">agentckpt</a>) save state. Post-mortem tools read transcripts after the fact. undomap is the pre-flight audit: where would a mistake cost you something you can't get back?</p>
+<p class="next">Back to <a href="./">Overview</a></p></main></div>
+<footer class="foot">undomap 0.1.0 · MIT · <a href="https://github.com/Blackman99/undomap/issues">issues</a></footer>
+</body></html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overview · undomap docs</title>
+<meta name="description" content="What undomap answers, the three zones, and what it deliberately does not do.">
+<link rel="canonical" href="https://blackman99.github.io/undomap/docs/">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#cfdce3">
+<meta property="og:type" content="article"><meta property="og:site_name" content="undomap">
+<meta property="og:url" content="https://blackman99.github.io/undomap/docs/"><meta property="og:title" content="undomap docs · Overview"><meta property="og:description" content="What undomap answers, the three zones, and what it deliberately does not do.">
+<meta property="og:image" content="https://blackman99.github.io/undomap/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="undomap flood-zone survey map">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="undomap docs · Overview"><meta name="twitter:description" content="What undomap answers, the three zones, and what it deliberately does not do."><meta name="twitter:image" content="https://blackman99.github.io/undomap/og.png">
+<link rel="stylesheet" href="docs.css"></head>
+<body>
+<header class="strip"><a class="mark" href="../"><img src="../favicon.svg" width="20" height="20" alt=""><span>undomap</span></a><p>DOCS · SHEET 01 OF 06</p><nav><a href="../">Map</a><a href="https://github.com/Blackman99/undomap">GitHub</a></nav></header>
+<div class="wrap"><nav class="side" aria-label="Docs"><p>Index of sheets</p><ol><li><a href="index.html" aria-current="page">Overview</a></li><li><a href="install.html">Install</a></li><li><a href="usage.html">Usage</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="reference.html">Reference</a></li><li><a href="faq.html">FAQ</a></li></ol></nav>
+<main><h1>Overview</h1>
+<p class="lead">undomap tells you, in one command, which paths your AI coding agent can erase with no way back — ranked by permanent-loss bytes — and the cheapest fix for each.</p>
+<pre><code>npx github:Blackman99/undomap</code></pre>
+<h2>Why</h2>
+<p>Agents with write access delete things: a checkpoint restore that cleans a gitignored folder (<a href="https://github.com/cline/cline/issues/15023">cline#15023</a>), a cleanup that takes a whole edit with it (<a href="https://news.ycombinator.com/item?id=50085323">HN, TV4</a>), a worktree removed with the work still inside. In every thread the question afterwards is the same: <em>what else could it have taken?</em> Command blockers try to stop the next <code>rm -rf</code>. undomap answers the question before the session starts.</p>
+<h2>The three zones</h2>
+<table>
+<tr><th>Zone</th><th>Means</th><th>Examples</th></tr>
+<tr><td><b class="ve">VE</b> permanent</td><td>Gone forever if deleted or overwritten</td><td>gitignored data and <code>.env</code>; untracked notes; folders outside any repo; symlinks that point outside; a repo with no remote</td></tr>
+<tr><td><b class="ae">AE</b> slow undo</td><td>Comes back, at a cost</td><td><code>node_modules</code>, <code>dist</code>, <code>.venv</code>, compiled binaries; uncommitted edits; unpushed commits; anything inside a local snapshot</td></tr>
+<tr><td><b class="x">X</b> undoable</td><td><code>git checkout</code> brings it back</td><td>clean tracked files</td></tr>
+</table>
+<p>The letters come from US flood insurance rate maps: Zone VE is the coastal high-hazard area where water moves fast, AE is the base floodplain, X is minimal risk.</p>
+<h2>What it doesn't do</h2>
+<ul><li>It doesn't block commands. Pair it with a guard (deny-lists, sandboxes) if you want that.</li>
+<li>It doesn't take backups or checkpoints. It tells you where they're missing. <a href="https://github.com/Blackman99/agentckpt">agentckpt</a> is one option for checkpoints.</li>
+<li>It never writes. git runs with <code>GIT_OPTIONAL_LOCKS=0</code>, so not even the index gets refreshed.</li></ul>
+<p>Next: <a href="install.html">Install</a> · <a href="usage.html">Usage</a></p>
+<p class="next">Next sheet: <a href="install.html">Install</a></p></main></div>
+<footer class="foot">undomap 0.1.0 · MIT · <a href="https://github.com/Blackman99/undomap/issues">issues</a></footer>
+</body></html>

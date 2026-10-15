@@ -1,0 +1,34 @@
+name: "undomap — permanent-loss path map"
+description: "Map which paths an AI coding agent could erase with no way back, ranked by bytes, with the cheapest fix for each."
+author: "Blackman99"
+branding:
+  icon: "alert-triangle"
+  color: "orange"
+
+inputs:
+  path:
+    description: "Directory to map, relative to the workspace"
+    required: false
+    default: "."
+  fail-on-permanent:
+    description: "Fail the step when anything is in Zone VE (permanent loss) above max-permanent"
+    required: false
+    default: "true"
+  max-permanent:
+    description: "Zone VE bytes to tolerate before failing, e.g. 0, 10MB, 1GB"
+    required: false
+    default: "0"
+
+outputs:
+  permanent-bytes:
+    description: "Bytes in Zone VE: no git history, no remote, no snapshot"
+  permanent-places:
+    description: "Number of places in Zone VE"
+  slow-bytes:
+    description: "Bytes in Zone AE: recoverable, but only slowly (rebuild, re-download, restore)"
+  json:
+    description: "Compact JSON: root, totals per zone, top 20 Zone VE places"
+
+runs:
+  using: "node24"
+  main: "dist/action.js"

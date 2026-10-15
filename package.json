@@ -1,0 +1,60 @@
+{
+  "name": "undomap",
+  "version": "0.1.0",
+  "description": "Which paths can your AI coding agent erase with no way back? One command maps them, ranked by permanent-loss bytes, with the cheapest fix for each.",
+  "type": "module",
+  "bin": {
+    "undomap": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist/cli.js",
+    "dist/index.js",
+    "action.yml",
+    "README.md",
+    "LICENSE",
+    "GOAL.md"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test test/grade.test.ts test/map.test.ts test/cli.test.ts test/mcp.test.ts",
+    "docs": "node scripts/build_docs.mjs"
+  },
+  "keywords": [
+    "ai-agents",
+    "claude-code",
+    "codex",
+    "cursor",
+    "cline",
+    "undo",
+    "backup",
+    "blast-radius",
+    "data-loss",
+    "git",
+    "mcp",
+    "mcp-server",
+    "cli"
+  ],
+  "author": "Blackman99",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Blackman99/undomap.git"
+  },
+  "homepage": "https://blackman99.github.io/undomap/",
+  "bugs": "https://github.com/Blackman99/undomap/issues",
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "d3-contour": "^4.0.2",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.0"
+  }
+}

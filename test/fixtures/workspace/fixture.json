@@ -1,0 +1,6 @@
+{
+  "_why": "A plain folder holding a repo (with a remote), scratch files and a symlink that escapes.",
+  "repos": { "project": { "commit": ["README.md", "src/x.js"], "remote": true } },
+  "symlinks": { "shared": "../outside" },
+  "outside": { "outside/config.yml": "token: fake\n" }
+}

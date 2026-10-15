@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: version matches tag
+        run: |
+          v=$(node -p "require('./package.json').version")
+          test "v$v" = "${GITHUB_REF_NAME}" || (echo "::error::package.json $v != tag ${GITHUB_REF_NAME}" && exit 1)
+          grep -q "\"$v\"" src/version.ts
+      - run: npm pack
+      - name: smoke-test the tarball
+        run: |
+          mkdir /tmp/t && cd /tmp/t && npm init -y >/dev/null && npm install "$GITHUB_WORKSPACE"/undomap-*.tgz
+          npx undomap --version
+          set +e; npx undomap . ; code=$?; set -e
+          test "$code" -le 1
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | npx undomap mcp | grep -q list_permanent
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: undomap-*.tgz
+          generate_release_notes: true

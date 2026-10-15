@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usage · undomap docs</title>
+<meta name="description" content="Mapping a directory, --fix, --json, CI, the GitHub Action and the MCP server.">
+<link rel="canonical" href="https://blackman99.github.io/undomap/docs/usage.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#cfdce3">
+<meta property="og:type" content="article"><meta property="og:site_name" content="undomap">
+<meta property="og:url" content="https://blackman99.github.io/undomap/docs/usage.html"><meta property="og:title" content="undomap docs · Usage"><meta property="og:description" content="Mapping a directory, --fix, --json, CI, the GitHub Action and the MCP server.">
+<meta property="og:image" content="https://blackman99.github.io/undomap/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="undomap flood-zone survey map">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="undomap docs · Usage"><meta name="twitter:description" content="Mapping a directory, --fix, --json, CI, the GitHub Action and the MCP server."><meta name="twitter:image" content="https://blackman99.github.io/undomap/og.png">
+<link rel="stylesheet" href="docs.css"></head>
+<body>
+<header class="strip"><a class="mark" href="../"><img src="../favicon.svg" width="20" height="20" alt=""><span>undomap</span></a><p>DOCS · SHEET 03 OF 06</p><nav><a href="../">Map</a><a href="https://github.com/Blackman99/undomap">GitHub</a></nav></header>
+<div class="wrap"><nav class="side" aria-label="Docs"><p>Index of sheets</p><ol><li><a href="index.html">Overview</a></li><li><a href="install.html">Install</a></li><li><a href="usage.html" aria-current="page">Usage</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="reference.html">Reference</a></li><li><a href="faq.html">FAQ</a></li></ol></nav>
+<main><h1>Usage</h1>
+<h2 id="map">Map a directory</h2>
+<pre><code>undomap                    # current directory
+undomap ~/code             # a folder of many repos: each repo is surveyed with git
+undomap . --fix            # cheapest fix under every Zone VE place
+undomap . --all            # every Zone VE place, not just the top 12</code></pre>
+<p>The report leads with Zone VE: <code>{bytes} across {n} places your agent can erase forever</code>, biggest first. Secrets (<code>.env</code>, keys, credentials) are always listed, even when they're small. Zone AE and Zone X follow, then the probes that were run.</p>
+<h2 id="fix">Fixes</h2>
+<p>Each permanent place gets one fix, the cheapest that actually protects it. A few examples:</p>
+<table><tr><th>Finding</th><th>Fix</th></tr>
+<tr><td>untracked, small</td><td><code>git add -- notes && git commit</code></td></tr>
+<tr><td>gitignored, small</td><td>tarball outside the tree (it's ignored on purpose, so don't commit it)</td></tr>
+<tr><td>secret-looking</td><td>copy to a password manager or <code>~/.config</code></td></tr>
+<tr><td>over 25 MB, or a binary/media file over 2 MB</td><td><code>rsync</code> to somewhere the agent can't write, plus snapshots</td></tr>
+<tr><td>folder outside git</td><td><code>git init && git add -A && git commit</code></td></tr>
+<tr><td>repo with no remote</td><td><code>git bundle create ~/repo.bundle --all</code></td></tr>
+<tr><td>symlink out of the tree</td><td>map the target too, or replace the link with a copy</td></tr></table>
+<p>When no snapshot probe covers the map, one machine-level fix is added at the end: Time Machine, snapper or ZFS, or File History.</p>
+<h2 id="json">JSON and Markdown</h2>
+<pre><code>undomap --json > undomap.json      # also drop it on the landing page to draw your own map
+undomap --markdown >> "$GITHUB_STEP_SUMMARY"</code></pre>
+<h2 id="ci">Exit codes in scripts</h2>
+<pre><code>undomap ~/agent-workspace || echo "something in Zone VE"
+undomap . --max-permanent 1MB      # tolerate small things</code></pre>
+<h2 id="action">GitHub Action</h2>
+<p>Useful before an agent step on a self-hosted runner, a mounted volume or a long-lived dev box. On a fresh checkout everything is tracked, so the Action matters where state persists.</p>
+<pre><code>- uses: Blackman99/undomap@v0
+  id: map
+  with:
+    path: .                    # default
+    fail-on-permanent: true    # default; false = warn only
+    max-permanent: 0           # bytes allowed, e.g. 10MB
+- run: echo "permanent=${{ steps.map.outputs.permanent-bytes }}"</code></pre>
+<p>Outputs: <code>permanent-bytes</code>, <code>permanent-places</code>, <code>slow-bytes</code>, <code>json</code>. The job summary gets the Zone VE table.</p>
+<h2 id="mcp">MCP server</h2>
+<pre><code>claude mcp add undomap -- npx -y github:Blackman99/undomap mcp</code></pre>
+<pre><code>// Cursor / Cline / any MCP client
+{ "mcpServers": { "undomap": { "command": "npx", "args": ["-y", "github:Blackman99/undomap", "mcp"] } } }</code></pre>
+<p>Two read-only tools, <code>map_report</code> and <code>list_permanent</code>. Both take <code>path</code>, which defaults to the server's working directory. A good instruction for your agent: <em>before <code>rm -rf</code>, <code>git clean -fdx</code>, <code>git reset --hard</code> or a checkpoint restore, call list_permanent on the workspace.</em></p>
+<p class="next">Next sheet: <a href="configuration.html">Configuration</a></p></main></div>
+<footer class="foot">undomap 0.1.0 · MIT · <a href="https://github.com/Blackman99/undomap/issues">issues</a></footer>
+</body></html>

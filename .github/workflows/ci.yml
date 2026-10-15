@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ["18", "20", "24"]
+        exclude:
+          - os: macos-latest
+            node: "18"
+          - os: windows-latest
+            node: "18"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm test
+      - name: dist and site/app.js are up to date
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '24'
+        shell: bash
+        run: git diff --exit-code -- dist site/app.js || (echo "::error::run npm run build and commit dist/ and site/app.js" && exit 1)
+
+  dogfood:
+    # The real thing on a real checkout: this repo should have nothing in Zone VE.
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: npm ci
+      - name: map this checkout (exit 0 = nothing permanent)
+        run: node dist/cli.js . --fix
+      - name: markdown into the job summary
+        run: node dist/cli.js . --markdown >> "$GITHUB_STEP_SUMMARY"
+      - name: an untracked folder lands in Zone VE (exit 1)
+        shell: bash
+        run: |
+          mkdir -p renders && head -c 3000000 /dev/urandom > renders/final.mov
+          set +e; node dist/cli.js . > out.txt; code=$?; set -e
+          cat out.txt
+          test "$code" = "1" && grep -q "renders/" out.txt && grep -q "across 1 place your agent can erase forever" out.txt
+      - name: MCP stdio smoke
+        shell: bash
+        run: |
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_permanent","arguments":{"path":"."}}}' \
+            | node dist/cli.js mcp > mcp.out
+          node -e "const l=require('fs').readFileSync('mcp.out','utf8').trim().split('\n').map(JSON.parse); const t=l.find(x=>x.id===2).result.tools.map(x=>x.name).join(); if(t!=='map_report,list_permanent') throw new Error(t); const r=l.find(x=>x.id===3).result; if(r.isError||!/renders/.test(r.content[0].text)) throw new Error(JSON.stringify(r)); console.log('ok', t)"
+
+  action:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v7
+      - id: clean
+        uses: ./
+      - name: clean checkout has nothing permanent
+        run: test "${{ steps.clean.outputs.permanent-places }}" = "0"
+      - name: make something only this runner has
+        run: mkdir -p scratch/notes && echo "the only copy" > scratch/notes/plan.md && head -c 40000000 /dev/urandom > scratch/dataset.bin
+      - id: warn
+        uses: ./
+        with:
+          path: scratch
+          fail-on-permanent: "false"
+      - name: outputs
+        run: |
+          echo "permanent=${{ steps.warn.outputs.permanent-bytes }} places=${{ steps.warn.outputs.permanent-places }}"
+          test "${{ steps.warn.outputs.permanent-places }}" -ge 1
+          test "${{ steps.warn.outputs.permanent-bytes }}" -ge 40000000
+      - id: gate
+        uses: ./
+        continue-on-error: true
+        with:
+          path: scratch
+      - name: the gate failed the step
+        run: test "${{ steps.gate.outcome }}" = "failure"
+      - id: tolerated
+        uses: ./
+        with:
+          path: scratch
+          max-permanent: 1GB

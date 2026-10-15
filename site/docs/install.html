@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install · undomap docs</title>
+<meta name="description" content="npx, global install, release tarball, requirements.">
+<link rel="canonical" href="https://blackman99.github.io/undomap/docs/install.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#cfdce3">
+<meta property="og:type" content="article"><meta property="og:site_name" content="undomap">
+<meta property="og:url" content="https://blackman99.github.io/undomap/docs/install.html"><meta property="og:title" content="undomap docs · Install"><meta property="og:description" content="npx, global install, release tarball, requirements.">
+<meta property="og:image" content="https://blackman99.github.io/undomap/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="undomap flood-zone survey map">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="undomap docs · Install"><meta name="twitter:description" content="npx, global install, release tarball, requirements."><meta name="twitter:image" content="https://blackman99.github.io/undomap/og.png">
+<link rel="stylesheet" href="docs.css"></head>
+<body>
+<header class="strip"><a class="mark" href="../"><img src="../favicon.svg" width="20" height="20" alt=""><span>undomap</span></a><p>DOCS · SHEET 02 OF 06</p><nav><a href="../">Map</a><a href="https://github.com/Blackman99/undomap">GitHub</a></nav></header>
+<div class="wrap"><nav class="side" aria-label="Docs"><p>Index of sheets</p><ol><li><a href="index.html">Overview</a></li><li><a href="install.html" aria-current="page">Install</a></li><li><a href="usage.html">Usage</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="reference.html">Reference</a></li><li><a href="faq.html">FAQ</a></li></ol></nav>
+<main><h1>Install</h1>
+<h2>Run without installing</h2>
+<pre><code>npx github:Blackman99/undomap            # map the current directory
+npx github:Blackman99/undomap ~/code     # or any directory</code></pre>
+<p>Requires <b>Node.js 18.17+</b> and <b>git</b> on <code>PATH</code>. Without git, undomap still runs but grades everything as outside git and tells you so. The package is one bundled file with no runtime dependencies.</p>
+<h2>Install the command</h2>
+<pre><code>npm install -g github:Blackman99/undomap
+undomap --version</code></pre>
+<p>Or download <code>undomap-0.1.0.tgz</code> from <a href="https://github.com/Blackman99/undomap/releases/latest">GitHub Releases</a> and run <code>npm install -g ./undomap-0.1.0.tgz</code>. It isn't on the npm registry yet. Once it is, <code>npx undomap</code> will work too.</p>
+<h2>Platforms</h2>
+<table><tr><th>OS</th><th>Snapshot probe</th></tr>
+<tr><td>macOS</td><td><code>tmutil destinationinfo</code>, <code>listlocalsnapshots</code>, and <code>isexcluded</code> for each fragile path</td></tr>
+<tr><td>Linux</td><td><code>findmnt</code> for the mount, then snapper (<code>.snapshots</code>), ZFS (<code>.zfs/snapshot</code>) and Timeshift</td></tr>
+<tr><td>Windows</td><td>Shadow copies are reported as unknown, because <code>vssadmin</code> needs an admin shell</td></tr></table>
+<p class="next">Next sheet: <a href="usage.html">Usage</a></p></main></div>
+<footer class="foot">undomap 0.1.0 · MIT · <a href="https://github.com/Blackman99/undomap/issues">issues</a></footer>
+</body></html>

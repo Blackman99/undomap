@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuration · undomap docs</title>
+<meta name="description" content=".undomap.json, flags, thresholds and exit codes.">
+<link rel="canonical" href="https://blackman99.github.io/undomap/docs/configuration.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#cfdce3">
+<meta property="og:type" content="article"><meta property="og:site_name" content="undomap">
+<meta property="og:url" content="https://blackman99.github.io/undomap/docs/configuration.html"><meta property="og:title" content="undomap docs · Configuration"><meta property="og:description" content=".undomap.json, flags, thresholds and exit codes.">
+<meta property="og:image" content="https://blackman99.github.io/undomap/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="undomap flood-zone survey map">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="undomap docs · Configuration"><meta name="twitter:description" content=".undomap.json, flags, thresholds and exit codes."><meta name="twitter:image" content="https://blackman99.github.io/undomap/og.png">
+<link rel="stylesheet" href="docs.css"></head>
+<body>
+<header class="strip"><a class="mark" href="../"><img src="../favicon.svg" width="20" height="20" alt=""><span>undomap</span></a><p>DOCS · SHEET 04 OF 06</p><nav><a href="../">Map</a><a href="https://github.com/Blackman99/undomap">GitHub</a></nav></header>
+<div class="wrap"><nav class="side" aria-label="Docs"><p>Index of sheets</p><ol><li><a href="index.html">Overview</a></li><li><a href="install.html">Install</a></li><li><a href="usage.html">Usage</a></li><li><a href="configuration.html" aria-current="page">Configuration</a></li><li><a href="reference.html">Reference</a></li><li><a href="faq.html">FAQ</a></li></ol></nav>
+<main><h1>Configuration</h1>
+<h2>.undomap.json</h2>
+<p>Optional, at the root you map (or pass <code>--config file</code>). It tells undomap what it can't detect.</p>
+<pre><code>{
+  "regenerable": ["generated/", "*.parquet", "data/cache/**"],
+  "backedUp": ["media/", "Rushes/"]
+}</code></pre>
+<ul><li><code>regenerable</code>: paths your scripts rebuild. They're graded Zone AE.</li>
+<li><code>backedUp</code>: paths you back up some other way (restic, borg, rsync to a NAS, a versioned bucket). They're graded Zone AE with the reason "backed up per .undomap.json".</li></ul>
+<p>Pattern rules: <code>dir/</code> matches that directory at any depth, or anchored if it contains another slash (<code>a/dir/</code>). <code>*.ext</code> matches a basename. <code>a/**/b</code> matches across directories. Unknown keys are an error, so a typo can't silently grade your data as safe.</p>
+<h2>Flags</h2>
+<table><tr><th>Flag</th><th>Default</th><th></th></tr>
+<tr><td><code>--fix</code></td><td>off</td><td>fix under every Zone VE place (otherwise only the biggest)</td></tr>
+<tr><td><code>--json</code> / <code>--markdown</code></td><td>text</td><td>output format</td></tr>
+<tr><td><code>--all</code></td><td>top 12</td><td>list every Zone VE place</td></tr>
+<tr><td><code>--max-permanent &lt;size&gt;</code></td><td><code>0</code></td><td>permanent bytes allowed before exit 1: <code>512KB</code>, <code>10MB</code>, <code>1.5GB</code></td></tr>
+<tr><td><code>--config &lt;file&gt;</code></td><td><code>&lt;path&gt;/.undomap.json</code></td><td>config file</td></tr>
+<tr><td><code>--no-probe</code></td><td>probe</td><td>skip snapshot probes</td></tr>
+<tr><td><code>--no-color</code></td><td>auto</td><td>also <code>NO_COLOR=1</code>. <code>FORCE_COLOR=1</code> forces color in pipes</td></tr></table>
+<h2>Exit codes</h2>
+<table><tr><td><code>0</code></td><td>nothing in Zone VE (or under <code>--max-permanent</code>)</td></tr><tr><td><code>1</code></td><td>something in Zone VE</td></tr><tr><td><code>2</code></td><td>usage error, unreadable root, invalid config</td></tr></table>
+<p class="next">Next sheet: <a href="reference.html">Reference</a></p></main></div>
+<footer class="foot">undomap 0.1.0 · MIT · <a href="https://github.com/Blackman99/undomap/issues">issues</a></footer>
+</body></html>

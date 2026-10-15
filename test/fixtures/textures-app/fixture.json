@@ -1,0 +1,6 @@
+{
+  "_why": "Mirrors cline/cline#15023: a gitignored textures folder next to tracked code.",
+  "commit": [".gitignore", "package.json", "src/index.js", "src/app.js"],
+  "generate": { "textures_sorted/original/stone.png": 40960, "textures_sorted/original/moss.png": 24576, "build.log": 300 },
+  "modify": { "src/app.js": "// edited by the agent, not committed\n" }
+}

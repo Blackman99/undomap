@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.env
+textures_sorted/original/
+*.log
