@@ -81,7 +81,7 @@ test("empty state: a pushed, clean repo exits 0 and says so", () => {
 test("errors exit 2 with a hint", () => {
   let r = run(["/definitely/not/here"]);
   assert.equal(r.code, 2);
-  assert.match(r.err, /no such directory: \/definitely\/not\/here/);
+  assert.match(r.err, /no such directory: .*definitely[\\/]not[\\/]here/);
   r = run(["--frobnicate"]);
   assert.equal(r.code, 2);
   assert.match(r.err, /unknown option --frobnicate/);

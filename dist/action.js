@@ -479,7 +479,7 @@ function collect(rootInput, opts = {}) {
     throw new UsageError(`no such directory: ${rootInput}`);
   }
   if (!st.isDirectory()) throw new UsageError(`undomap maps directories; ${rootInput} is a file. Try: undomap ${JSON.stringify(resolve(rootInput, ".."))}`);
-  const root = realpathSync(resolve(rootInput));
+  const root = realpathSync.native(resolve(rootInput));
   const entries = [];
   const absOf = /* @__PURE__ */ new Map();
   const repos = [];
@@ -505,7 +505,7 @@ function collect(rootInput, opts = {}) {
   };
   const realTarget = (abs) => {
     try {
-      return realpathSync(abs);
+      return realpathSync.native(abs);
     } catch {
       return null;
     }
@@ -714,7 +714,7 @@ function collect(rootInput, opts = {}) {
     if (gitOk && existsSync2(join2(dir, ".git"))) {
       const top = git(dir, ["rev-parse", "--show-toplevel"]);
       if (top.ok && top.out.trim()) {
-        const t = realpathSync(resolve(top.out.trim()));
+        const t = realpathSync.native(resolve(top.out.trim()));
         if (t === dir) return scanRepo(dir);
       }
     }
@@ -722,7 +722,7 @@ function collect(rootInput, opts = {}) {
   };
   if (gitOk) {
     const top = git(root, ["rev-parse", "--show-toplevel"]);
-    const t = top.ok && top.out.trim() ? realpathSync(resolve(top.out.trim())) : null;
+    const t = top.ok && top.out.trim() ? realpathSync.native(resolve(top.out.trim())) : null;
     if (t && t !== root) {
       const sub = relative(t, root);
       const ignored = git(t, ["check-ignore", "-q", "--", sub.split(sep2).join("/") + "/"]).ok;
