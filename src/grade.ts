@@ -9,6 +9,11 @@ export interface Config {
   regenerable?: string[];
   /** Paths you back up some other way (restic, rsync, a NAS job) — graded slow, not permanent. */
   backedUp?: string[];
+  /**
+   * Paths that can't be rebuilt even if they look regenerable (a hand-curated `data/` under `build/`, a `models/`
+   * cache). They beat every regenerable guess; real coverage (`backedUp`, a snapshot) and git itself still win.
+   */
+  permanent?: string[];
 }
 
 export interface Inventory {
@@ -31,9 +36,17 @@ export interface GradeOptions {
 
 const ZONE_ORDER: Record<Zone, number> = { VE: 0, AE: 1, X: 2 };
 
+/**
+ * Precedence, highest first:
+ *   1. what git knows: clean tracked = X; uncommitted edits and unpushed commits = AE
+ *   2. real coverage: `backedUp`, a snapshot that covers the path = AE
+ *   3. `permanent` in .undomap.json: beats every "regenerable" guess (built-in names, markers, your `regenerable`)
+ *   4. regenerable = AE
+ *   5. everything else that git doesn't hold = VE
+ */
 export function classify(e: RawEntry, config: Config = {}): Omit<Finding, "fix"> {
   const base = { path: e.path, bytes: e.bytes, files: e.files, capped: !!e.capped, repo: e.repo, secret: false, target: e.target, unpushed: e.unpushed };
-  const userRegen = (config.regenerable ?? []).find((g) => globMatch(g, e.path));
+  const userRegen = (config.regenerable ?? []).some((g) => globMatch(g, e.path));
   const userBacked = (config.backedUp ?? []).some((g) => globMatch(g, e.path)) || e.backedUp;
   if (e.repoIssue === "no-remote") {
     if (userBacked) return { ...base, zone: "AE", kind: "backed-up", why: "no remote, but backed up per .undomap.json" };
@@ -47,16 +60,27 @@ export function classify(e: RawEntry, config: Config = {}): Omit<Finding, "fix">
     if (e.snapshot) return { ...base, zone: "AE", kind: "snapshot", why: `link to ${e.target}; target in ${e.snapshot}` };
     return { ...base, zone: "VE", kind: "symlink-escape", why: "symlink out of the map · the agent writes through it" };
   }
-  const regen = userRegen ? "per your .undomap.json" : (e.regen ?? regenerable(e.path));
-  if (regen) return { ...base, zone: "AE", kind: "regenerable", why: `${e.git === "ignored" ? "gitignored · " : e.git === "untracked" ? "untracked · " : ""}regenerable (${regen})` };
+  const forcedBy = e.permanent ?? (config.permanent ?? []).find((g) => globMatch(g, e.path));
+  const looked = userRegen ? "per your .undomap.json" : (e.regen ?? regenerable(e.path));
+  const gitWhat = e.git === "ignored" ? "gitignored · " : e.git === "untracked" ? "untracked · " : "";
+  if (looked && !forcedBy) return { ...base, zone: "AE", kind: "regenerable", why: `${gitWhat}regenerable (${looked})` };
   const secret = isSecret(e.path);
   const crit = critical(e.path);
   const what = e.git === "ignored" ? "gitignored" : e.git === "untracked" ? "untracked" : "outside any git repo";
   const kind = e.git === "ignored" ? "ignored" : e.git === "untracked" ? "untracked" : "no-git";
-  if (userBacked) return { ...base, secret, zone: "AE", kind: "backed-up", why: `${what}, but backed up per .undomap.json` };
-  if (e.snapshot) return { ...base, secret, zone: "AE", kind: "snapshot", why: `${what}; restorable from ${e.snapshot}` };
+  const forced = forcedBy ? { forcedBy } : {};
+  const marked = forcedBy ? ", marked permanent" : "";
+  if (userBacked) return { ...base, ...forced, secret, zone: "AE", kind: "backed-up", why: `${what}${marked}, but backed up per .undomap.json` };
+  if (e.snapshot) return { ...base, ...forced, secret, zone: "AE", kind: "snapshot", why: `${what}${marked}; restorable from ${e.snapshot}` };
   const extra = secret ? " · looks like secrets" : crit ? ` · ${crit}` : "";
-  return { ...base, secret, zone: "VE", kind, why: `${what}${extra}` };
+  const note = !forcedBy
+    ? ""
+    : userRegen
+      ? " · on both lists in .undomap.json: permanent wins over regenerable"
+      : looked
+        ? ` · looks regenerable (${looked}) but .undomap.json marks it permanent`
+        : " · permanent per .undomap.json";
+  return { ...base, ...forced, secret, zone: "VE", kind, why: `${what}${extra}${note}` };
 }
 
 export function grade(inv: Inventory, opts: GradeOptions = {}): Report {

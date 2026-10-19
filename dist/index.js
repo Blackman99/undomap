@@ -1,3 +1,7 @@
+// src/run.ts
+import { realpathSync as realpathSync3, statSync as statSync2 } from "node:fs";
+import { resolve as resolve2 } from "node:path";
+
 // src/collect.ts
 import { spawnSync as spawnSync2 } from "node:child_process";
 import { accessSync, closeSync, constants, existsSync as existsSync2, lstatSync, openSync, readSync, readdirSync as readdirSync2, realpathSync as realpathSync2, statSync } from "node:fs";
@@ -69,19 +73,21 @@ function critical(path) {
   for (const [re, why] of CRITICAL) if (re.test(name)) return why;
   return void 0;
 }
-function globMatch(pattern, path) {
+function globMatcher(pattern) {
   const p = pattern.trim().replace(/^\.\//, "");
-  if (!p) return false;
+  if (!p) return () => false;
   if (p.endsWith("/")) {
     const anchored = p.slice(0, -1).includes("/");
-    if (path === p || path.startsWith(p)) return true;
-    return !anchored && ("/" + path).includes("/" + p);
+    return (path) => path === p || path.startsWith(p) || !anchored && ("/" + path).includes("/" + p);
   }
   const re = new RegExp(
     "^" + p.split("**").map((part) => part.split("*").map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join("[^/]*")).join(".*") + "$"
   );
-  const subject = p.includes("/") ? path.replace(/\/+$/, "") : base(path);
-  return re.test(subject);
+  const rel = p.includes("/");
+  return (path) => re.test(rel ? path.replace(/\/+$/, "") : base(path));
+}
+function globMatch(pattern, path) {
+  return globMatcher(pattern)(path);
 }
 
 // src/snapshots.ts
@@ -258,6 +264,9 @@ function collect(rootInput, opts = {}) {
       opts.onProgress(fileCount);
     }
   };
+  const permanent = (opts.config?.permanent ?? []).map((g) => [g, globMatcher(g)]);
+  const userRegen = (opts.config?.regenerable ?? []).map((g) => globMatcher(g));
+  const permanentOf = (path) => permanent.find(([, m]) => m(path))?.[0];
   const rel = (abs, dir = false) => {
     const r = relative(root, abs).split(sep2).join("/");
     return dir ? r ? r + "/" : "./" : r;
@@ -274,8 +283,8 @@ function collect(rootInput, opts = {}) {
       return null;
     }
   };
-  const sizeTree = (start, followEscapes) => {
-    const out = { bytes: 0, files: 0, capped: false, nested: [], links: [] };
+  const sizeTree = (start, followEscapes, carve) => {
+    const out = { bytes: 0, files: 0, capped: false, nested: [], links: [], carved: [] };
     const stack = [start];
     let seenHere = 0;
     while (stack.length) {
@@ -299,6 +308,13 @@ function collect(rootInput, opts = {}) {
           stack.length = 0;
           break;
         }
+        if (carve && !d.isSymbolicLink()) {
+          const path = carve(p, d.isDirectory());
+          if (path) {
+            out.carved.push({ abs: p, path, dir: d.isDirectory() });
+            continue;
+          }
+        }
         if (d.isDirectory()) stack.push(p);
         else if (d.isSymbolicLink()) {
           out.files++;
@@ -320,7 +336,7 @@ function collect(rootInput, opts = {}) {
     return out;
   };
   const escapeEntry = (linkAbs, target, repo) => {
-    let s = { bytes: 0, files: 0, capped: false, nested: [], links: [] };
+    let s = { bytes: 0, files: 0, capped: false, nested: [], links: [], carved: [] };
     try {
       s = statSync(target).isDirectory() ? sizeTree(target, false) : { ...s, bytes: statSync(target).size, files: 1 };
     } catch {
@@ -328,11 +344,19 @@ function collect(rootInput, opts = {}) {
     push({ path: rel(linkAbs), bytes: s.bytes, files: s.files, capped: s.capped, git: "none", target, repo }, target);
   };
   const sizedEntry = (abs, path, state, repo) => {
-    const marker = regenerable(path) ? void 0 : dirMarker(abs);
-    const s = sizeTree(abs, !regenerable(path) && !marker);
-    push({ path, bytes: s.bytes, files: s.files, capped: s.capped, git: state, repo, regen: marker }, abs);
+    const named = regenerable(path);
+    const marker = named ? void 0 : dirMarker(abs);
+    const forced = permanentOf(path);
+    const looksRegen = !!(named || marker || userRegen.some((m) => m(path)));
+    const carve = looksRegen && !forced && permanent.length ? (a, dir) => {
+      const r = rel(a, dir);
+      return permanentOf(r) ? r : void 0;
+    } : void 0;
+    const s = sizeTree(abs, !!forced || !named && !marker, carve);
+    push({ path, bytes: s.bytes, files: s.files, capped: s.capped, git: state, repo, regen: marker, permanent: forced }, abs);
     for (const l of s.links) escapeEntry(l.abs, l.target, repo);
     for (const n of s.nested) scanDir(n);
+    for (const c of s.carved) (c.dir ? sizedEntry : fileEntry)(c.abs, c.path, state, repo);
   };
   const fileEntry = (abs, path, state, repo) => {
     try {
@@ -342,7 +366,7 @@ function collect(rootInput, opts = {}) {
         if (t && !inside(t) && writable(t)) return escapeEntry(abs, t, repo);
       }
       tick();
-      push({ path, bytes: ls.size, files: 1, git: state, repo, regen: ls.isFile() ? binaryMarker(abs, ls.size) : void 0 }, abs);
+      push({ path, bytes: ls.size, files: 1, git: state, repo, regen: ls.isFile() ? binaryMarker(abs, ls.size) : void 0, permanent: permanentOf(path) }, abs);
     } catch {
     }
   };
@@ -502,7 +526,7 @@ function collect(rootInput, opts = {}) {
   const platform = opts.platform ?? process.platform;
   const snap = opts.snapshots ?? probeSnapshots(root, { platform, mode: opts.noProbe ? "off" : void 0 });
   for (const e of entries) {
-    const fragile = e.repoIssue === "no-remote" || e.target || !e.aggregate && !e.repoIssue && e.git !== "dirty" && e.git !== "clean" && !e.regen && !regenerable(e.path);
+    const fragile = e.repoIssue === "no-remote" || e.target || !e.aggregate && !e.repoIssue && e.git !== "dirty" && e.git !== "clean" && (!!e.permanent || !e.regen && !regenerable(e.path));
     if (fragile) {
       const label2 = snap.covers(absOf.get(e) ?? root);
       if (label2) e.snapshot = label2;
@@ -541,11 +565,11 @@ function loadConfig(root, explicit) {
   } catch (e) {
     throw new UsageError(`${file}: not valid JSON (${e.message})`);
   }
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new UsageError(`${file}: expected an object like {"regenerable": [], "backedUp": []}`);
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new UsageError(`${file}: expected an object like {"permanent": [], "regenerable": [], "backedUp": []}`);
   const out = {};
   for (const [k, v] of Object.entries(raw)) {
     if (k === "$schema") continue;
-    if (k !== "regenerable" && k !== "backedUp") throw new UsageError(`${file}: unknown key "${k}" (known: regenerable, backedUp)`);
+    if (k !== "regenerable" && k !== "backedUp" && k !== "permanent") throw new UsageError(`${file}: unknown key "${k}" (known: permanent, regenerable, backedUp)`);
     if (!Array.isArray(v) || !v.every((s) => typeof s === "string")) throw new UsageError(`${file}: "${k}" must be an array of path patterns`);
     out[k] = v;
   }
@@ -570,7 +594,7 @@ function fixFor(f, ctx) {
       if (f.secret)
         return {
           say: "keep a copy outside the tree (password manager or ~/.config)",
-          run: `mkdir -p -m 700 ~/.undomap-safe && cp -Rp ${q(p)} ~/.undomap-safe/${q(name)}`,
+          run: `mkdir -p -m 700 ${SAFE} && cp -Rp ${q(p)} ${SAFE}/${q(name)}`,
           cost: "seconds"
         };
       const binary = f.bytes > MEDIA_SMALL && (BINARY.test(p) || f.path.endsWith("/") && f.bytes / Math.max(1, f.files) > 1024 * 1024);
@@ -583,10 +607,10 @@ function fixFor(f, ctx) {
       if (f.kind === "untracked")
         return { say: "commit it, then git checkout brings it back", run: `git add -- ${q(p)} && git commit -m ${q(`track ${p}`)}`, cost: "seconds" };
       if (f.kind === "no-git")
-        return f.path.endsWith("/") ? { say: "give it local history in one command", run: `git -C ${q(p)} init -q && git -C ${q(p)} add -A && git -C ${q(p)} commit -qm "undomap: baseline"`, cost: "seconds" } : { say: "copy it outside the agent's workspace", run: `mkdir -p ~/.undomap-safe && cp -p ${q(p)} ~/.undomap-safe/`, cost: "seconds" };
+        return f.path.endsWith("/") ? { say: "give it local history in one command", run: `git -C ${q(p)} init -q && git -C ${q(p)} add -A && git -C ${q(p)} commit -qm "undomap: baseline"`, cost: "seconds" } : { say: "copy it outside the agent's workspace", run: `mkdir -p -m 700 ${SAFE} && cp -p ${q(p)} ${SAFE}/`, cost: "seconds" };
       return {
         say: "ignored on purpose, so don't commit it: keep a copy outside the tree",
-        run: `mkdir -p ~/.undomap-safe && tar -czf ~/.undomap-safe/${q(name)}.tgz ${q(p)}`,
+        run: `mkdir -p -m 700 ${SAFE} && tar -czf ${SAFE}/${q(name + ".tgz")} ${q(p)}`,
         cost: "seconds"
       };
     }
@@ -623,7 +647,7 @@ var VERSION = "0.1.0";
 var ZONE_ORDER = { VE: 0, AE: 1, X: 2 };
 function classify(e, config = {}) {
   const base2 = { path: e.path, bytes: e.bytes, files: e.files, capped: !!e.capped, repo: e.repo, secret: false, target: e.target, unpushed: e.unpushed };
-  const userRegen = (config.regenerable ?? []).find((g) => globMatch(g, e.path));
+  const userRegen = (config.regenerable ?? []).some((g) => globMatch(g, e.path));
   const userBacked = (config.backedUp ?? []).some((g) => globMatch(g, e.path)) || e.backedUp;
   if (e.repoIssue === "no-remote") {
     if (userBacked) return { ...base2, zone: "AE", kind: "backed-up", why: "no remote, but backed up per .undomap.json" };
@@ -637,16 +661,21 @@ function classify(e, config = {}) {
     if (e.snapshot) return { ...base2, zone: "AE", kind: "snapshot", why: `link to ${e.target}; target in ${e.snapshot}` };
     return { ...base2, zone: "VE", kind: "symlink-escape", why: "symlink out of the map \xB7 the agent writes through it" };
   }
-  const regen = userRegen ? "per your .undomap.json" : e.regen ?? regenerable(e.path);
-  if (regen) return { ...base2, zone: "AE", kind: "regenerable", why: `${e.git === "ignored" ? "gitignored \xB7 " : e.git === "untracked" ? "untracked \xB7 " : ""}regenerable (${regen})` };
+  const forcedBy = e.permanent ?? (config.permanent ?? []).find((g) => globMatch(g, e.path));
+  const looked = userRegen ? "per your .undomap.json" : e.regen ?? regenerable(e.path);
+  const gitWhat = e.git === "ignored" ? "gitignored \xB7 " : e.git === "untracked" ? "untracked \xB7 " : "";
+  if (looked && !forcedBy) return { ...base2, zone: "AE", kind: "regenerable", why: `${gitWhat}regenerable (${looked})` };
   const secret = isSecret(e.path);
   const crit = critical(e.path);
   const what = e.git === "ignored" ? "gitignored" : e.git === "untracked" ? "untracked" : "outside any git repo";
   const kind = e.git === "ignored" ? "ignored" : e.git === "untracked" ? "untracked" : "no-git";
-  if (userBacked) return { ...base2, secret, zone: "AE", kind: "backed-up", why: `${what}, but backed up per .undomap.json` };
-  if (e.snapshot) return { ...base2, secret, zone: "AE", kind: "snapshot", why: `${what}; restorable from ${e.snapshot}` };
+  const forced = forcedBy ? { forcedBy } : {};
+  const marked = forcedBy ? ", marked permanent" : "";
+  if (userBacked) return { ...base2, ...forced, secret, zone: "AE", kind: "backed-up", why: `${what}${marked}, but backed up per .undomap.json` };
+  if (e.snapshot) return { ...base2, ...forced, secret, zone: "AE", kind: "snapshot", why: `${what}${marked}; restorable from ${e.snapshot}` };
   const extra = secret ? " \xB7 looks like secrets" : crit ? ` \xB7 ${crit}` : "";
-  return { ...base2, secret, zone: "VE", kind, why: `${what}${extra}` };
+  const note = !forcedBy ? "" : userRegen ? " \xB7 on both lists in .undomap.json: permanent wins over regenerable" : looked ? ` \xB7 looks regenerable (${looked}) but .undomap.json marks it permanent` : " \xB7 permanent per .undomap.json";
+  return { ...base2, ...forced, secret, zone: "VE", kind, why: `${what}${extra}${note}` };
 }
 function grade(inv, opts = {}) {
   const config = opts.config ?? {};
@@ -687,8 +716,17 @@ function grade(inv, opts = {}) {
 
 // src/run.ts
 function mapPath(path, opts = {}) {
-  const inv = collect(path, opts);
-  const config = opts.config ?? loadConfig(inv.root, opts.configFile).config;
+  let config = opts.config;
+  if (!config) {
+    let root;
+    try {
+      root = statSync2(path).isDirectory() ? realpathSync3.native(resolve2(path)) : void 0;
+    } catch {
+    }
+    if (root) config = loadConfig(root, opts.configFile).config;
+  }
+  const inv = collect(path, { ...opts, config });
+  config ??= loadConfig(inv.root, opts.configFile).config;
   return grade(inv, { thresholdBytes: opts.thresholdBytes, config });
 }
 

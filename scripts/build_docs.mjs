@@ -87,11 +87,20 @@ configuration: `
 <h2>.undomap.json</h2>
 <p>Optional, at the root you map (or pass <code>--config file</code>). It tells undomap what it can't detect.</p>
 <pre><code>{
+  "permanent": ["build/atlas/", ".cache/models/", "vendor/patched/"],
   "regenerable": ["generated/", "*.parquet", "data/cache/**"],
   "backedUp": ["media/", "Rushes/"]
 }</code></pre>
-<ul><li><code>regenerable</code>: paths your scripts rebuild. They're graded Zone AE.</li>
+<ul><li><code>permanent</code>: paths that can't be rebuilt even though they look like they can: a hand-tuned folder under <code>build/</code> or <code>dist/</code>, model weights in <code>.cache/models/</code>, a vendored patch, a prebuilt binary with no source. They're graded Zone VE with the reason "looks regenerable (…) but .undomap.json marks it permanent", and the JSON finding carries <code>"forcedBy": "&lt;pattern&gt;"</code>. A permanent folder inside a regenerable one is carved out as its own place, so <code>.cache/</code> stays Zone AE and <code>.cache/models/</code> shows up in Zone VE with its own bytes.</li>
+<li><code>regenerable</code>: paths your scripts rebuild. They're graded Zone AE.</li>
 <li><code>backedUp</code>: paths you back up some other way (restic, borg, rsync to a NAS, a versioned bucket). They're graded Zone AE with the reason "backed up per .undomap.json".</li></ul>
+<h2 id="precedence">Precedence</h2>
+<p>When rules disagree, the first one that applies wins:</p>
+<ol><li><b>What git knows.</b> Clean tracked files are Zone X and uncommitted edits or unpushed commits are Zone AE, whatever the config says. <code>permanent</code> can't make git forget a commit.</li>
+<li><b>Real coverage.</b> <code>backedUp</code> and a snapshot that covers the path move it to Zone AE, even if it's also <code>permanent</code>: a copy really exists somewhere else. The reason says both ("marked permanent, but backed up per .undomap.json").</li>
+<li><b><code>permanent</code></b> beats every "regenerable" guess: built-in folder names (<code>dist</code>, <code>.cache</code>, <code>vendor</code>…), content markers (<code>pyvenv.cfg</code>, <code>CACHEDIR.TAG</code>, ELF/Mach-O/PE headers) and your own <code>regenerable</code> list. If a path is on both of your lists, <code>permanent</code> wins.</li>
+<li><b>Regenerable</b> (built-in or yours): Zone AE.</li>
+<li>Everything else git doesn't hold: Zone VE.</li></ol>
 <p>Pattern rules: <code>dir/</code> matches that directory at any depth, or anchored if it contains another slash (<code>a/dir/</code>). <code>*.ext</code> matches a basename. <code>a/**/b</code> matches across directories. Unknown keys are an error, so a typo can't silently grade your data as safe.</p>
 <h2>Flags</h2>
 <table><tr><th>Flag</th><th>Default</th><th></th></tr>
@@ -107,7 +116,7 @@ configuration: `
 reference: `
 <h2>Finding kinds</h2>
 <table><tr><th>kind</th><th>zone</th><th>when</th></tr>
-<tr><td><code>ignored</code></td><td>VE</td><td>gitignored, not regenerable</td></tr>
+<tr><td><code>ignored</code></td><td>VE</td><td>gitignored, not regenerable (or regenerable-looking but listed under <code>permanent</code>)</td></tr>
 <tr><td><code>untracked</code></td><td>VE</td><td>untracked, not regenerable</td></tr>
 <tr><td><code>no-git</code></td><td>VE</td><td>outside every git work tree (<code>dir/</code>, or <code>*</code> for loose files)</td></tr>
 <tr><td><code>symlink-escape</code></td><td>VE</td><td>a link inside the map whose target is outside it and writable by you; bytes are the target's</td></tr>
@@ -126,15 +135,16 @@ reference: `
   "totals": { "VE": { "bytes": 1300000000, "places": 4, "files": 3155 }, "AE": {…}, "X": {…} },
   "findings": [{ "zone": "VE", "kind": "ignored", "path": "textures_sorted/", "bytes": 1300000000,
                  "files": 3112, "capped": false, "why": "gitignored", "secret": false,
+                 "forcedBy": "textures_sorted/",   // only when a .undomap.json "permanent" pattern matched
                  "fix": { "say": "…", "run": "…", "cost": "minutes" } }, …],
   "skipped": [{ "path": "private/", "reason": "EACCES" }],
   "exitCode": 1, "thresholdBytes": 0
 }</code></pre>
-<p>Paths are relative to <code>root</code>, use POSIX separators, and directories end in <code>/</code>. <code>capped: true</code> means sizing stopped at 250,000 entries for that place, so bytes is a lower bound (shown with a <code>+</code>). Remote URLs are never printed, only remote names, because URLs can carry tokens.</p>
+<p><code>forcedBy</code> is present when a <code>permanent</code> pattern from <code>.undomap.json</code> matched the path (see <a href="configuration.html#precedence">precedence</a>); <code>why</code> then says the config forced it. Paths are relative to <code>root</code>, use POSIX separators, and directories end in <code>/</code>. <code>capped: true</code> means sizing stopped at 250,000 entries for that place, so bytes is a lower bound (shown with a <code>+</code>). Remote URLs are never printed, only remote names, because URLs can carry tokens.</p>
 <h2>MCP tools</h2>
 <table><tr><th>tool</th><th>args</th><th>returns</th></tr>
 <tr><td><code>map_report</code></td><td><code>path?</code></td><td>Markdown report + compact JSON</td></tr>
-<tr><td><code>list_permanent</code></td><td><code>path?</code>, <code>limit?</code> (25)</td><td>JSON: summary, permanent[] with path, bytes, why, fix, run; more</td></tr></table>
+<tr><td><code>list_permanent</code></td><td><code>path?</code>, <code>limit?</code> (25)</td><td>JSON: summary, permanent[] with path, bytes, why, forcedBy, fix, run; more</td></tr></table>
 <p>Both are annotated <code>readOnlyHint: true</code>, <code>destructiveHint: false</code>.</p>`,
 faq: `
 <h2>My files go to the Trash when I delete them. Isn't that an undo?</h2>
@@ -148,7 +158,7 @@ faq: `
 <h2>Dropbox, iCloud or OneDrive?</h2>
 <p>A sync client copies a delete within seconds. The provider's own version history or recycle bin (often 30 days) is the real undo. v0.1 doesn't detect it yet (planned for v0.2). Until then, list those folders under <code>backedUp</code> if you trust that history.</p>
 <h2>It says my <code>dist/</code> is regenerable, but it isn't.</h2>
-<p>Built-in names are a guess. Add the folder to <code>backedUp</code> if it's protected some other way. If it really can't be rebuilt, rename it or <a href="https://github.com/Blackman99/undomap/issues">open an issue</a>. A per-path "permanent" override is on the roadmap.</p>
+<p>Built-in names are a guess. List it under <code>permanent</code> in <code>.undomap.json</code> and it's graded Zone VE with a fix, even if it sits inside a regenerable folder (<code>"permanent": [".cache/models/"]</code> carves just that subfolder out). If it's protected some other way, use <code>backedUp</code> instead. See <a href="configuration.html#precedence">precedence</a>.</p>
 <h2>Does it read file contents?</h2>
 <p>Only the first 4 bytes of gitignored or untracked files, to spot compiled binaries. Everything else is <code>lstat</code> and git metadata. Nothing leaves your machine. The landing page draws dropped JSON in the browser tab.</p>
 <h2>How is this different from agentckpt, blast-radius tools or command blockers?</h2>
