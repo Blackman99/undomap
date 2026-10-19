@@ -38,9 +38,9 @@ test("iCloud Drive: deletes come back for 30 days, overwrites don't, so it never
   assert.equal(c.probes[0].counts, false);
   assert.equal(c.check(`${icloud}/proj/renders/`, dir)?.status, "partial");
   assert.equal(c.check(`${icloud}/proj/cache.nosync`, dir)?.status, "gap");
-  assert.equal(c.check(`${icloud}/proj/build.nosync/out.bin`, file(10))?.note, "iCloud skips .nosync items");
+  assert.equal(c.check(`${icloud}/proj/build.nosync/out.bin`, file(10))?.note, ".nosync item");
   assert.equal(c.check(`${icloud}/proj/upload.TMP`, file(10))?.status, "gap");
-  assert.equal(c.check(`${icloud}/proj/huge.mov`, file(60 * 1024 ** 3))?.note, "a file over iCloud Drive's 50 GB limit doesn't sync");
+  assert.equal(c.check(`${icloud}/proj/huge.mov`, file(60 * 1024 ** 3))?.note, "a file over the 50 GB limit");
   assert.equal(c.check(`/Users/ana/code/x`, dir), undefined);
 });
 
@@ -56,8 +56,8 @@ test("Dropbox: info.json + running client = covered; ignore attributes, temp nam
   assert.equal(c.probes[0].status, "ok");
   assert.match(c.probes[0].detail, /^Dropbox ~\/Library\/CloudStorage\/Dropbox · client running · version history and deleted files/);
   assert.equal(c.check(`${root}/proj/data/clean/`, dir)?.status, "covered");
-  assert.deepEqual(c.check(`${root}/proj/data/raw/2026/`, dir), { provider: "Dropbox", status: "gap", note: "marked ignored for Dropbox (com.dropbox.ignored)", root });
-  assert.equal(c.check(`${root}/proj/~$budget.xlsx`, file(10))?.note, "Dropbox skips temporary files");
+  assert.deepEqual(c.check(`${root}/proj/data/raw/2026/`, dir), { provider: "Dropbox", status: "gap", note: "ignore attribute set", root });
+  assert.equal(c.check(`${root}/proj/~$budget.xlsx`, file(10))?.note, "temporary file");
   assert.equal(c.check(`${root}/proj/~lock.tmp`, file(10))?.status, "gap");
   assert.equal(c.check(`${root}/proj/scratch/notes.md`, file(10))?.note, "matches rules.dropboxignore");
   // A huge folder is fine for Dropbox: no per-file limit to check.
@@ -97,9 +97,9 @@ test("OneDrive on Windows: %OneDriveCommercial% + OneDrive.exe = covered; refuse
   assert.match(c.probes[0].detail, /^OneDrive ~\\OneDrive - Contoso · client running · version history and recycle bin/);
   assert.equal(c.check(`${root}\\PROJ\\data\\`, dir)?.status, "covered", "Windows paths compare case-insensitively");
   assert.equal(c.check(`${root}\\proj\\~$report.docx`, file(10))?.status, "gap");
-  assert.equal(c.check(`${root}\\proj\\CON.txt`, file(10))?.note, "a name OneDrive refuses");
+  assert.equal(c.check(`${root}\\proj\\CON.txt`, file(10))?.note, "refused name");
   assert.equal(c.check(`${root}\\proj\\render.tmp`, file(10))?.status, "gap");
-  assert.equal(c.check(`${root}\\proj\\vm.vhdx`, file(300 * 1024 ** 3))?.note, "a file over OneDrive's 250 GB limit doesn't sync");
+  assert.equal(c.check(`${root}\\proj\\vm.vhdx`, file(300 * 1024 ** 3))?.note, "a file over the 250 GB limit");
   assert.equal(c.check(`${root}\\proj\\vms\\`, { bytes: 400 * 1024 ** 3, maxFile: 260 * 1024 ** 3, dir: true })?.status, "gap");
   assert.equal(c.check(`${root}\\proj\\big\\`, { bytes: 9e9, maxFile: 1e9, dir: true, capped: true })?.status, "unverified");
   // a leftover ~\OneDrive - Old folder with no env var pointing at it: unverified
@@ -111,7 +111,7 @@ test("OneDrive on macOS and Linux: ~/Library/CloudStorage is strong, a bare ~/On
   const cs = "/Users/ana/Library/CloudStorage/OneDrive-Personal";
   const mac = probeCloud(`${cs}/p`, { platform: "darwin", home: "/Users/ana", env: {}, fs: fakeFs("darwin", [`${cs}/p`]), run: ps("OneDrive") });
   assert.equal(mac.check(`${cs}/p/notes.md`, file(10))?.status, "covered");
-  assert.equal(mac.check(`${cs}/p/sp<ec>ial.md`, file(10))?.note, "characters OneDrive refuses");
+  assert.equal(mac.check(`${cs}/p/sp<ec>ial.md`, file(10))?.note, "refused characters");
   const lin = probeCloud("/home/ana/OneDrive/p", { platform: "linux", home: "/home/ana", env: {}, fs: fakeFs("linux", ["/home/ana/OneDrive/p"]), run: ps("onedrive") });
   assert.equal(lin.check("/home/ana/OneDrive/p/notes.md", file(10))?.status, "unverified");
 });
@@ -157,7 +157,7 @@ test("grading: only verified coverage demotes to Zone AE; the rest stays Zone VE
   assert.equal(u.zone, "VE");
   assert.equal(u.why, "untracked · possible Dropbox versioning, unverified");
   assert.equal(classify({ ...e, cloud: cov("partial", "", "iCloud Drive") }).why, "untracked · iCloud Drive keeps deletes 30 days, not overwrites");
-  assert.equal(classify({ ...e, cloud: cov("gap", "matches rules.dropboxignore") }).why, "untracked · Dropbox doesn't sync it");
+  assert.equal(classify({ ...e, cloud: cov("gap", "matches rules.dropboxignore") }).why, "untracked · Dropbox skips it (matches rules.dropboxignore)");
   // no-remote repos and symlink targets follow the same rule
   assert.equal(classify({ path: ".git/", bytes: 9, files: 2, git: "clean", repoIssue: "no-remote", unpushed: 3, cloud: cov("covered") }).kind, "cloud");
   assert.equal(classify({ path: ".git/", bytes: 9, files: 2, git: "clean", repoIssue: "no-remote", unpushed: 3, cloud: cov("unverified") }).zone, "VE");
@@ -178,7 +178,7 @@ test("fixes inside a sync folder say what the provider does, and keep the copy-p
         { path: "Final Cut/", bytes: 3e9, files: 40, git: "none", cloud: cov("unverified", "Dropbox app not running") },
         { path: "notes/", bytes: 3000, files: 2, git: "untracked", cloud: cov("unverified", ".dropbox marker but no client config, may be a stale copy") },
         { path: ".env", bytes: 40, files: 1, git: "ignored", cloud: cov("partial", "", "iCloud Drive") },
-        { path: "~$draft.docx", bytes: 40, files: 1, git: "none", cloud: cov("gap", "Dropbox skips temporary files") },
+        { path: "~$draft.docx", bytes: 40, files: 1, git: "none", cloud: cov("gap", "temporary file") },
       ],
       [{ name: "cloud sync", status: "ok", detail: "Dropbox", counts: true }],
     ),
@@ -189,7 +189,7 @@ test("fixes inside a sync folder say what the provider does, and keep the copy-p
   assert.equal(by["notes/"].say, "commit it, then git checkout brings it back · possible Dropbox versioning, unverified");
   assert.match(by[".env"].say, /^keep a copy outside the tree .* · iCloud Drive only brings back deletes, not overwrites$/);
   assert.match(by[".env"].run!, /^mkdir -p -m 700 ~\/\.undomap-safe && cp -Rp \.env /);
-  assert.match(by["~$draft.docx"].say, /^Dropbox doesn't sync it \(Dropbox skips temporary files\): /);
+  assert.match(by["~$draft.docx"].say, / · Dropbox skips it: temporary file$/);
   assert.equal(by["~$draft.docx"].run, "mkdir -p -m 700 ~/.undomap-safe && cp -p '~$draft.docx' ~/.undomap-safe/", "a leading ~ is quoted so the shell doesn't expand it");
   // a cloud probe isn't a machine snapshot: the big-file fix still says to snapshot the copy
   assert.match(by["Final Cut/"].say, /then snapshot that copy/);
@@ -216,7 +216,7 @@ test("map: a project inside a verified Dropbox folder moves to Zone AE, an ignor
     r = mapPath(fx.dir, { snapshots: { probes: [], covers: () => undefined }, cloud: { home, env: {}, run, dropboxIgnored: (p) => p.toLowerCase() === ignoredDir.toLowerCase() } });
     f = Object.fromEntries(r.findings.map((x) => [x.path, x]));
     assert.equal(f["textures_sorted/"].zone, "VE");
-    assert.match(f["textures_sorted/"].why, /Dropbox doesn't sync it/);
+    assert.match(f["textures_sorted/"].why, /Dropbox skips it \(ignore attribute set\)/);
     assert.equal(f["textures_sorted/"].cloud?.status, "gap");
     assert.equal(f[".env"].zone, "AE");
   } finally {

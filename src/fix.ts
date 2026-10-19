@@ -27,7 +27,7 @@ export function fixFor(f: Finding, ctx: FixContext): Fix | undefined {
 function cloudSay(c: NonNullable<Finding["cloud"]>, say: string): string {
   if (c.status === "unverified") return `${say} · possible ${c.provider} versioning, unverified`;
   if (c.status === "partial") return `${say} · ${c.provider} only brings back deletes, not overwrites`;
-  return `${c.provider} doesn't sync it (${c.note}): ${say}`;
+  return `${say} · ${c.provider} skips it: ${c.note}`;
 }
 
 /** One line per unverified sync folder: the cheapest way to find out whether its history counts. */

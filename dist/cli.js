@@ -284,23 +284,23 @@ var PROCESS = {
 function skippedName(provider, name) {
   const n = name.toLowerCase();
   if (provider === "iCloud Drive") {
-    if (n.endsWith(".nosync")) return "iCloud skips .nosync items";
-    if (n.endsWith(".tmp")) return "iCloud skips .tmp items";
+    if (n.endsWith(".nosync")) return ".nosync item";
+    if (n.endsWith(".tmp")) return ".tmp item";
     return void 0;
   }
   const system = ["desktop.ini", "thumbs.db", ".ds_store"];
   if (provider === "Dropbox") {
-    if ([...system, "icon\r", ".dropbox", ".dropbox.attr"].includes(n)) return "Dropbox never syncs system files";
-    if (n.startsWith("~$") || n.startsWith(".~") || n.startsWith("~") && n.endsWith(".tmp")) return "Dropbox skips temporary files";
+    if ([...system, "icon\r", ".dropbox", ".dropbox.attr"].includes(n)) return "system file";
+    if (n.startsWith("~$") || n.startsWith(".~") || n.startsWith("~") && n.endsWith(".tmp")) return "temporary file";
     return void 0;
   }
   if (provider === "OneDrive") {
-    if (system.includes(n) || n.endsWith(".tmp")) return "OneDrive doesn't sync temp and system files";
-    if (n.startsWith("~$") || n.includes("_vti_") || n === ".lock" || /^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/.test(n)) return "a name OneDrive refuses";
-    if (/["*:<>?|]/.test(name) || /^\s|\s$/.test(name)) return "characters OneDrive refuses";
+    if (system.includes(n) || n.endsWith(".tmp")) return "temp or system file";
+    if (n.startsWith("~$") || n.includes("_vti_") || n === ".lock" || /^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/.test(n)) return "refused name";
+    if (/["*:<>?|]/.test(name) || /^\s|\s$/.test(name)) return "refused characters";
     return void 0;
   }
-  if (system.includes(n) || n.endsWith(".tmp") || n.startsWith("~$")) return "Drive for desktop skips temp and system files";
+  if (system.includes(n) || n.endsWith(".tmp") || n.startsWith("~$")) return "temp or system file";
   return void 0;
 }
 function probeCloud(rootAbs, opts = {}) {
@@ -451,7 +451,7 @@ function probeCloud(rootAbs, opts = {}) {
       const limit = FILE_LIMIT[c.provider];
       if (limit) {
         const biggest = facts.dir ? facts.maxFile : facts.bytes;
-        if (biggest !== void 0 && biggest > limit[0]) return out("gap", `a file over ${c.provider}'s ${limit[1]} limit doesn't sync`);
+        if (biggest !== void 0 && biggest > limit[0]) return out("gap", `a file over the ${limit[1]} limit`);
       }
       if (c.status === "partial") return out("partial", HISTORY[c.provider]);
       if (c.status !== "covered") return out("unverified", c.why ?? "unverified");
@@ -461,7 +461,7 @@ function probeCloud(rootAbs, opts = {}) {
         if (relPosix && ignoreRules(c.root).some((m) => prefixes.some((p) => m(p)))) return out("gap", "matches rules.dropboxignore");
         for (let d = abs; under2(d, c.root) && norm(d) !== norm(c.root); d = P.dirname(d)) {
           const v = ignored(d);
-          if (v === true) return out("gap", "marked ignored for Dropbox (com.dropbox.ignored)");
+          if (v === true) return out("gap", "ignore attribute set");
           if (v === void 0) return out("unverified", platform === "linux" ? "can't read the Dropbox ignore attribute (install attr for getfattr)" : "can't read the Dropbox ignore attribute");
         }
       }
@@ -866,7 +866,7 @@ function fixFor(f, ctx) {
 function cloudSay(c, say) {
   if (c.status === "unverified") return `${say} \xB7 possible ${c.provider} versioning, unverified`;
   if (c.status === "partial") return `${say} \xB7 ${c.provider} only brings back deletes, not overwrites`;
-  return `${c.provider} doesn't sync it (${c.note}): ${say}`;
+  return `${say} \xB7 ${c.provider} skips it: ${c.note}`;
 }
 function cloudCheck(c) {
   if (/not running/.test(c.note)) return `start ${c.provider}, let it finish syncing, then rerun undomap`;
@@ -943,7 +943,7 @@ function classify(e, config = {}) {
   const c = e.cloud;
   const cloud = c ? { cloud: { provider: c.provider, status: c.status, note: c.note } } : {};
   const synced = c?.status === "covered";
-  const cloudNote = !c || synced ? "" : c.status === "unverified" ? ` \xB7 possible ${c.provider} versioning, unverified` : c.status === "partial" ? ` \xB7 ${c.provider} keeps deletes 30 days, not overwrites` : ` \xB7 ${c.provider} doesn't sync it`;
+  const cloudNote = !c || synced ? "" : c.status === "unverified" ? ` \xB7 possible ${c.provider} versioning, unverified` : c.status === "partial" ? ` \xB7 ${c.provider} keeps deletes 30 days, not overwrites` : ` \xB7 ${c.provider} skips it (${c.note})`;
   if (e.repoIssue === "no-remote") {
     if (userBacked) return { ...base2, zone: "AE", kind: "backed-up", why: "no remote, but backed up per .undomap.json" };
     if (e.snapshot) return { ...base2, zone: "AE", kind: "snapshot", why: `no remote; in ${e.snapshot}` };

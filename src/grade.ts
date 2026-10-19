@@ -55,7 +55,7 @@ export function classify(e: RawEntry, config: Config = {}): Omit<Finding, "fix">
   const cloud = c ? { cloud: { provider: c.provider, status: c.status, note: c.note } } : {};
   const synced = c?.status === "covered";
   // Appended to a Zone VE reason when a sync folder is involved but its history doesn't (provably) cover the path.
-  const cloudNote = !c || synced ? "" : c.status === "unverified" ? ` · possible ${c.provider} versioning, unverified` : c.status === "partial" ? ` · ${c.provider} keeps deletes 30 days, not overwrites` : ` · ${c.provider} doesn't sync it`;
+  const cloudNote = !c || synced ? "" : c.status === "unverified" ? ` · possible ${c.provider} versioning, unverified` : c.status === "partial" ? ` · ${c.provider} keeps deletes 30 days, not overwrites` : ` · ${c.provider} skips it (${c.note})`;
   if (e.repoIssue === "no-remote") {
     if (userBacked) return { ...base, zone: "AE", kind: "backed-up", why: "no remote, but backed up per .undomap.json" };
     if (e.snapshot) return { ...base, zone: "AE", kind: "snapshot", why: `no remote; in ${e.snapshot}` };

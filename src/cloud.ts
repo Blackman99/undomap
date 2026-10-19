@@ -132,23 +132,23 @@ const PROCESS: Record<string, Partial<Record<CloudProvider, string[]>>> = {
 function skippedName(provider: CloudProvider, name: string): string | undefined {
   const n = name.toLowerCase();
   if (provider === "iCloud Drive") {
-    if (n.endsWith(".nosync")) return "iCloud skips .nosync items";
-    if (n.endsWith(".tmp")) return "iCloud skips .tmp items";
+    if (n.endsWith(".nosync")) return ".nosync item";
+    if (n.endsWith(".tmp")) return ".tmp item";
     return undefined;
   }
   const system = ["desktop.ini", "thumbs.db", ".ds_store"];
   if (provider === "Dropbox") {
-    if ([...system, "icon\r", ".dropbox", ".dropbox.attr"].includes(n)) return "Dropbox never syncs system files";
-    if (n.startsWith("~$") || n.startsWith(".~") || (n.startsWith("~") && n.endsWith(".tmp"))) return "Dropbox skips temporary files";
+    if ([...system, "icon\r", ".dropbox", ".dropbox.attr"].includes(n)) return "system file";
+    if (n.startsWith("~$") || n.startsWith(".~") || (n.startsWith("~") && n.endsWith(".tmp"))) return "temporary file";
     return undefined;
   }
   if (provider === "OneDrive") {
-    if (system.includes(n) || n.endsWith(".tmp")) return "OneDrive doesn't sync temp and system files";
-    if (n.startsWith("~$") || n.includes("_vti_") || n === ".lock" || /^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/.test(n)) return "a name OneDrive refuses";
-    if (/["*:<>?|]/.test(name) || /^\s|\s$/.test(name)) return "characters OneDrive refuses";
+    if (system.includes(n) || n.endsWith(".tmp")) return "temp or system file";
+    if (n.startsWith("~$") || n.includes("_vti_") || n === ".lock" || /^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/.test(n)) return "refused name";
+    if (/["*:<>?|]/.test(name) || /^\s|\s$/.test(name)) return "refused characters";
     return undefined;
   }
-  if (system.includes(n) || n.endsWith(".tmp") || n.startsWith("~$")) return "Drive for desktop skips temp and system files";
+  if (system.includes(n) || n.endsWith(".tmp") || n.startsWith("~$")) return "temp or system file";
   return undefined;
 }
 
@@ -324,7 +324,7 @@ export function probeCloud(rootAbs: string, opts: CloudOptions = {}): CloudInfo 
       const limit = FILE_LIMIT[c.provider];
       if (limit) {
         const biggest = facts.dir ? facts.maxFile : facts.bytes;
-        if (biggest !== undefined && biggest > limit[0]) return out("gap", `a file over ${c.provider}'s ${limit[1]} limit doesn't sync`);
+        if (biggest !== undefined && biggest > limit[0]) return out("gap", `a file over the ${limit[1]} limit`);
       }
       if (c.status === "partial") return out("partial", HISTORY[c.provider]);
       if (c.status !== "covered") return out("unverified", c.why ?? "unverified");
@@ -334,7 +334,7 @@ export function probeCloud(rootAbs: string, opts: CloudOptions = {}): CloudInfo 
         if (relPosix && ignoreRules(c.root).some((m) => prefixes.some((p) => m(p)))) return out("gap", "matches rules.dropboxignore");
         for (let d = abs; under(d, c.root) && norm(d) !== norm(c.root); d = P.dirname(d)) {
           const v = ignored(d);
-          if (v === true) return out("gap", "marked ignored for Dropbox (com.dropbox.ignored)");
+          if (v === true) return out("gap", "ignore attribute set");
           if (v === undefined) return out("unverified", platform === "linux" ? "can't read the Dropbox ignore attribute (install attr for getfattr)" : "can't read the Dropbox ignore attribute");
         }
       }
