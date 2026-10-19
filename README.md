@@ -71,7 +71,7 @@ The zone letters come from FEMA flood maps:
 | Zone | Meaning | What lands here |
 |---|---|---|
 | **VE** permanent | gone for good | gitignored or untracked and not regenerable, outside any repo, a repo with no remote, a writable symlink out of the tree, nothing snapshotting it |
-| **AE** slow undo | recoverable, slowly | `node_modules/`, build output, venvs; uncommitted edits; unpushed commits; anything a detected snapshot covers |
+| **AE** slow undo | recoverable, slowly | `node_modules/`, build output, venvs; uncommitted edits; unpushed commits; anything a detected snapshot or verified cloud version history covers |
 | **X** undoable | one command away | clean tracked files: `git checkout` brings them back |
 
 Secret-looking files (`.env`, keys, credentials) are always listed, even past the top 12, because they can't be regenerated.
@@ -116,6 +116,7 @@ Tools: `map_report` (the whole map) and `list_permanent` (just Zone VE).
 
 - **Never writes.** No file in the mapped tree, `.git` or the index is touched. Git runs with `GIT_OPTIONAL_LOCKS=0`.
 - **Snapshots are probed, not assumed.** Time Machine, btrfs/snapper, ZFS and Timeshift are checked. A probe that can't run is reported as unknown and never fails the map.
+- **Cloud sync is verified, not trusted.** Inside an iCloud Drive, Dropbox, OneDrive or Google Drive folder, a path only moves to Zone AE when the client's own config points at the folder, the client is running, and none of the provider's known exclusions apply (Dropbox ignore attributes and `rules.dropboxignore`, `.nosync`/temp/system names, per-file size limits). iCloud keeps deletes but not overwrites, so it never demotes. Anything undomap can't confirm stays in Zone VE as "possible cloud versioning, unverified", with a one-line way to check. [Rules](https://blackman99.github.io/undomap/docs/reference.html#cloud).
 - **No network.** No telemetry, no uploads.
 
 ## What it isn't
