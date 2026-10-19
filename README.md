@@ -100,7 +100,17 @@ Outputs: `permanent-bytes`, `permanent-places`, `slow-bytes`, `json`.
 
 Tools: `map_report` (the whole map) and `list_permanent` (just Zone VE).
 
-**Config:** `.undomap.json` in the mapped directory lets you mark paths as `backedUp` (graded AE) or ignore them. See [configuration](https://blackman99.github.io/undomap/docs/configuration.html).
+**Config:** `.undomap.json` in the mapped directory tells undomap what it can't detect:
+
+```json
+{
+  "permanent": ["dist/atlas/", ".cache/models/"],
+  "regenerable": ["generated/"],
+  "backedUp": ["media/"]
+}
+```
+
+`permanent` forces a place into Zone VE even when its name or contents look regenerable (a hand-tuned folder under `dist/`, model weights in a cache). Precedence: what git knows (tracked, uncommitted, unpushed) wins, then real coverage (`backedUp`, a snapshot), then `permanent`, then any regenerable guess. See [configuration](https://blackman99.github.io/undomap/docs/configuration.html#precedence).
 
 ## Guarantees
 

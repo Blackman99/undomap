@@ -43,6 +43,8 @@ export interface RawEntry {
   backedUp?: boolean;
   /** Matches a config `regenerable` entry or a built-in pattern (set by grade). */
   regen?: string;
+  /** The `.undomap.json` `permanent` pattern that matches this path (set by collect; grade also checks). */
+  permanent?: string;
 }
 
 export interface Fix {
@@ -67,6 +69,8 @@ export interface Finding {
   secret: boolean;
   target?: string;
   unpushed?: number;
+  /** The `.undomap.json` `permanent` pattern that matched: it overrides any "regenerable" guess. */
+  forcedBy?: string;
   fix?: Fix;
 }
 

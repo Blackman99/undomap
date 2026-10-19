@@ -46,7 +46,7 @@ export function callTool(name: string, args: Json, cwd = process.cwd()): { text:
         {
           root: r.root,
           summary: ve.length ? `${fmtBytes(r.totals.VE.bytes)} across ${r.totals.VE.places} place(s) an agent can erase forever` : "nothing an agent can erase for good",
-          permanent: ve.slice(0, limit).map((f) => ({ path: f.path, bytes: f.bytes, size: fmtBytes(f.bytes), kind: f.kind, why: f.why, secret: f.secret, fix: f.fix?.say, run: f.fix?.run })),
+          permanent: ve.slice(0, limit).map((f) => ({ path: f.path, bytes: f.bytes, size: fmtBytes(f.bytes), kind: f.kind, why: f.why, secret: f.secret, forcedBy: f.forcedBy, fix: f.fix?.say, run: f.fix?.run })),
           more: Math.max(0, ve.length - limit),
         },
         null,
