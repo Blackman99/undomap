@@ -335,7 +335,9 @@ export function collect(rootInput: string, opts: CollectOptions = {}): Inventory
       if (unpushed > 0) push({ path: repoDir + ".git/", bytes: 0, files: 0, git: "clean", repoIssue: "unpushed", unpushed, repo }, top);
     }
     if (hasHead && !remotes.length) {
-      const gd = git(top, ["rev-parse", "--absolute-git-dir"]).out.trim();
+      // git prints C:/forward/slashes on Windows: resolve to the same native form as the root, so probes can match it.
+      const gdRaw = git(top, ["rev-parse", "--absolute-git-dir"]).out.trim();
+      const gd = gdRaw ? realTarget(resolve(gdRaw)) ?? resolve(gdRaw) : "";
       const commits = Number(git(top, ["rev-list", "--count", "--all"]).out.trim()) || 0;
       const s = gd ? sizeTree(gd, false) : { bytes: 0, files: 0, maxFile: 0, capped: false };
       push({ path: repoDir + ".git/", bytes: s.bytes, files: s.files, maxFile: s.maxFile, capped: s.capped, git: "clean", repoIssue: "no-remote", unpushed: commits, repo }, gd || top);
