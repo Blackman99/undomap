@@ -212,8 +212,8 @@ test("map: a project inside a verified Dropbox folder moves to Zone AE, an ignor
     assert.equal(f["node_modules/"].kind, "regenerable");
     assert.ok(r.probes.some((p) => p.name === "cloud sync" && p.status === "ok"));
     assert.equal(r.exitCode, 0);
-    const ignoredDir = join(fx.dir, "textures_sorted");
-    r = mapPath(fx.dir, { snapshots: { probes: [], covers: () => undefined }, cloud: { home, env: {}, run, dropboxIgnored: (p) => p.toLowerCase() === ignoredDir.toLowerCase() } });
+    // compare by name: on Windows the temp dir can come back as an 8.3 short path, the mapped root as the long one
+    r = mapPath(fx.dir, { snapshots: { probes: [], covers: () => undefined }, cloud: { home, env: {}, run, dropboxIgnored: (p) => /[\\/]textures_sorted$/.test(p) } });
     f = Object.fromEntries(r.findings.map((x) => [x.path, x]));
     assert.equal(f["textures_sorted/"].zone, "VE");
     assert.match(f["textures_sorted/"].why, /Dropbox skips it \(ignore attribute set\)/);
